@@ -16,7 +16,13 @@ RUN apt-get install libseccomp-dev -y
 
 RUN apt-get install cmake -y
 
+RUN useradd judge -u 1500 --system --no-create-home
+
+RUN useradd compile -u 1600 --system --no-create-home
+
 COPY . /app
+
+RUN pip3 install -r requirements.txt
 
 WORKDIR /app/Judger
 
@@ -32,6 +38,8 @@ RUN make install
 
 WORKDIR /app
 
-RUN cp /app/Judger/bindings/Python/_judger/__init__.py /app/judger.py
+RUN cp /app/Judger/bindings/Python/_judger/__init__.py /app/_judger.py
 
-CMD python3 -c "while True:pass"
+RUN ./install_langs.sh
+
+CMD python3 main.py

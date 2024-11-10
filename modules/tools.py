@@ -49,3 +49,5 @@ def random_string() -> str:
 
 def init():
     pass
+
+log = print

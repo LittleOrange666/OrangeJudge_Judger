@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 import shutil
 from typing import Callable
@@ -207,3 +208,13 @@ def init():
         keys = dat["branches"].keys()
         for key in keys:
             langs[key] = Language(lang_name, key)
+
+
+def call(cmd: list, stdin: str = "", timeout: float | None = None) -> tuple[str, str, int]:
+    cmd = list(map(str, cmd))
+    tools.log(*cmd)
+    if timeout is None:
+        timeout = 30
+    process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    ret = process.communicate(stdin.encode("utf8"), timeout=timeout)
+    return ret[0].decode("utf8"), ret[1].decode("utf8"), process.returncode

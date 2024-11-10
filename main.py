@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Body, File, UploadFile
 import uvicorn
 import asyncio
-from pydantic import BaseModel
 
 from modules import executing, task
 
@@ -23,6 +22,12 @@ async def run(lang: str = Body(...), file: UploadFile = File(...), in_file: Uplo
         f.write(in_file.file.read())
     in_file.file.close()
     res = task.run(f"tmp/{file.filename}", lang, f"tmp/{in_file.filename}")
+    return res
+
+
+@app.post("/call")
+async def call(cmd: str = Body(...)):
+    res = executing.call(cmd.split())
     return res
 
 if __name__ == '__main__':
