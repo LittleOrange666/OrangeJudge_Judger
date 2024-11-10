@@ -1,2 +1,4 @@
 runtimes/
 .idea/
+tmp/
+test/
