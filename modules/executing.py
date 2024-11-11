@@ -112,5 +112,9 @@ def call(cmd: list[str], user: User | None = None, stdin: str = "", timeout: flo
     if timeout is None:
         timeout = 30
     process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    ret = process.communicate(stdin.encode("utf8"), timeout=timeout)
-    return ret[0].decode("utf8"), ret[1].decode("utf8"), process.returncode
+    try:
+        ret = process.communicate(stdin.encode("utf8"), timeout=timeout)
+        return ret[0].decode("utf8"), ret[1].decode("utf8"), process.returncode
+    except subprocess.TimeoutExpired:
+        process.kill()
+        return "TLE", "TLE", 777777
