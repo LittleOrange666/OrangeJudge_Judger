@@ -4,19 +4,23 @@ import uvicorn
 from pydantic import BaseModel
 
 from modules import executing, constants
-from modules.executing import InteractResult, Result, SeccompRule
+from modules.executing import InteractResult, Result
+from modules.constants import SeccompRule, User
 
 app = FastAPI()
 
 
 class CallRequest(BaseModel):
     cmd: list[str]
+    user: User | None = None
+    stdin: str = ""
+    timeout: float | None = None
 
 
 @app.post("/call")
 async def call(item: CallRequest):
     print(item.dict())
-    res = executing.call(item.cmd)
+    res = executing.call(**item.dict())
     return res
 
 

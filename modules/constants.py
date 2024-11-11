@@ -1,3 +1,5 @@
+from enum import Enum
+
 import _judger
 
 root_uid = 0
@@ -23,3 +25,18 @@ judger_error: dict[int, str] = {_judger.ERROR_INVALID_CONFIG: "ERROR_INVALID_CON
                                 _judger.ERROR_SETUID_FAILED: "ERROR_SETUID_FAILED",
                                 _judger.ERROR_EXECVE_FAILED: "ERROR_EXECVE_FAILED",
                                 _judger.ERROR_SPJ_ERROR: "ERROR_SPJ_ERROR"}
+
+
+class SeccompRule(str, Enum):
+    c_cpp = "c_cpp"
+    c_cpp_file_io = "c_cpp_file_io"
+    general = "general"
+    golang = "golang"
+    node = "node"
+
+
+class User(str, Enum):
+    root = "root"
+    judge = "judge"
+    compile = "compile"
+    nobody = "nobody"

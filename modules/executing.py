@@ -4,13 +4,13 @@ import sys
 import shutil
 import threading
 import uuid
-from enum import Enum
 from typing import Callable
 from dataclasses import dataclass
 
 import _judger
 
 from modules import tools, constants
+from modules.constants import User
 
 
 def random_string() -> str:
@@ -19,14 +19,6 @@ def random_string() -> str:
 
 def temp_filename():
     return "/tmp/" + random_string()
-
-
-class SeccompRule(str, Enum):
-    c_cpp = "c_cpp"
-    c_cpp_file_io = "c_cpp_file_io"
-    general = "general"
-    golang = "golang"
-    node = "node"
 
 
 @dataclass
@@ -261,8 +253,9 @@ def init():
             langs[key] = Language(lang_name, key)
 
 
-def call(cmd: list, stdin: str = "", timeout: float | None = None) -> tuple[str, str, int]:
-    cmd = list(map(str, cmd))
+def call(cmd: list[str], user: User | None = None, stdin: str = "", timeout: float | None = None) -> tuple[str, str, int]:
+    if user is not None:
+        cmd = ["sudo", "-u", user.value] + cmd
     print(*cmd)
     if timeout is None:
         timeout = 30
