@@ -64,5 +64,4 @@ async def interact_judge(item: InteractJudgeRequest) -> InteractResult:
 
 
 if __name__ == '__main__':
-    executing.init()
     uvicorn.run(app, host='0.0.0.0', port=8000)
