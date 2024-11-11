@@ -20,6 +20,8 @@ RUN useradd judge -u 1500 --system --no-create-home
 
 RUN useradd compile -u 1600 --system --no-create-home
 
+RUN useradd running -u 1700 --system --no-create-home
+
 COPY . /app
 
 RUN pip3 install -r requirements.txt

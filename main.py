@@ -1,34 +1,59 @@
-from fastapi import FastAPI, Body, File, UploadFile
+from fastapi import FastAPI
 import uvicorn
-import asyncio
 
-from modules import executing, task
+from pydantic import BaseModel
+
+from modules import executing, constants
 
 app = FastAPI()
 
 
-@app.post("/test")
-async def test():
-    await asyncio.sleep(100)
-    return {"result": "ok"}
-
-
-@app.post("/run")
-async def run(lang: str = Body(...), file: UploadFile = File(...), in_file: UploadFile = File(...)):
-    with open(f"tmp/{file.filename}", "wb") as f:
-        f.write(file.file.read())
-    file.file.close()
-    with open(f"tmp/{in_file.filename}", "wb") as f:
-        f.write(in_file.file.read())
-    in_file.file.close()
-    res = task.run(f"tmp/{file.filename}", lang, f"tmp/{in_file.filename}")
-    return res
+class CallRequest(BaseModel):
+    cmd: list[str]
 
 
 @app.post("/call")
-async def call(cmd: str = Body(...)):
-    res = executing.call(cmd.split())
+async def call(item: CallRequest):
+    res = executing.call(item.cmd)
     return res
+
+
+class JudgeRequest(BaseModel):
+    cmd: list[str]
+    tl: int = 1000
+    ml: int = 128
+    in_file: str = "/dev/null"
+    out_file: str = "/dev/null"
+    err_file: str = "/dev/null"
+    seccomp_rule_name: str | None = None
+    uid: int = constants.nobody_uid
+
+
+@app.post("/judge")
+async def judge(item: JudgeRequest) -> JudgeRequest:
+    res = executing.run(**item.dict())
+    return res
+
+
+class InteractJudgeRequest(BaseModel):
+    cmd: list[str]
+    interact_cmd: list[str]
+    tl: int = 1000
+    ml: int = 128
+    in_file: str = "/dev/null"
+    out_file: str = "/dev/null"
+    err_file: str = "/dev/null"
+    interact_err_file: str = "/dev/null"
+    seccomp_rule_name: str | None = None
+    uid: int = constants.nobody_uid
+    interact_uid: int = constants.nobody_uid
+
+
+@app.post("/interact_judge")
+async def interact_judge(item: JudgeRequest) -> InteractJudgeRequest:
+    res = executing.interact_run(**item.dict())
+    return res
+
 
 if __name__ == '__main__':
     executing.init()
