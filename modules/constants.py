@@ -40,4 +40,5 @@ class User(str, Enum):
     root = "root"
     judge = "judge"
     compile = "compile"
+    running = "running"
     nobody = "nobody"
