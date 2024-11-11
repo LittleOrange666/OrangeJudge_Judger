@@ -1,1 +1,1 @@
-docker build . -t judger_server
+docker build . -t judger_server_test

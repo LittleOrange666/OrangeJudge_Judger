@@ -1,1 +1,0 @@
-wsl -e sudo python3 main.py

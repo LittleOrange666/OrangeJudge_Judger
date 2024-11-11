@@ -4,6 +4,7 @@ import sys
 import shutil
 import threading
 import uuid
+from enum import Enum
 from typing import Callable
 from dataclasses import dataclass
 
@@ -18,6 +19,14 @@ def random_string() -> str:
 
 def temp_filename():
     return "/tmp/" + random_string()
+
+
+class SeccompRule(str, Enum):
+    c_cpp = "c_cpp"
+    c_cpp_file_io = "c_cpp_file_io"
+    general = "general"
+    golang = "golang"
+    node = "node"
 
 
 @dataclass
@@ -46,7 +55,9 @@ def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null
     # tl: ms ml: MB
     exe_path = cmd[0]
     if not exe_path.startswith("/"):
-        exe_path = shutil.which(exe_path)
+        which_exe_path = shutil.which(exe_path)
+        if which_exe_path is not None:
+            exe_path = which_exe_path
     log_file = temp_filename()
     ret = _judger.run(max_cpu_time=tl,
                       max_real_time=tl + 1000,
