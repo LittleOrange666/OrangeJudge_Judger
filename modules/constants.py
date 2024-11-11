@@ -5,6 +5,7 @@ import _judger
 root_uid = 0
 judge_uid = 1500
 compile_uid = 1600
+runner_uid = 1600
 nobody_uid = 65534
 
 judegr_result: dict[int, str] = {_judger.RESULT_SUCCESS: "AC",
