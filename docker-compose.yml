@@ -1,7 +1,7 @@
 version: "1"
 services:
     judge_server:
-        image: judger_server_test
+        image: judge_server
         read_only: true
         cap_drop:
             - SETPCAP
