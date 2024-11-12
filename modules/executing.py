@@ -1,7 +1,7 @@
 import os
+import shutil
 import subprocess
 import sys
-import shutil
 import threading
 import uuid
 from dataclasses import dataclass
@@ -105,7 +105,8 @@ def interact_run(cmd: list[str], interact_cmd: list[str], tl: int = 1000, ml: in
     return InteractResult(result=res, interact_result=inter_res)
 
 
-def call(cmd: list[str], user: User | None = None, stdin: str = "", timeout: float | None = None) -> tuple[str, str, int]:
+def call(cmd: list[str], user: User | None = None, stdin: str = "", timeout: float | None = None) -> tuple[
+    str, str, int]:
     if user is not None:
         cmd = ["sudo", "-u", user.value] + cmd
     print(*cmd)

@@ -44,7 +44,6 @@ class User(str, Enum):
     nobody = "nobody"
 
 
-
 class InitOp(str, Enum):
     init = "init"
     check = "check"
