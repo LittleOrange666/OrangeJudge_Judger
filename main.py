@@ -81,7 +81,7 @@ class InitRequest(BaseModel):
 @app.post("/init")
 async def init(item: InitRequest) -> str:
     print(item.model_dump())
-    if item.op == InitOp:
+    if item.op == InitOp.init:
         if app.token == "<UNSET>":
             app.token = item.token
             return "OK"
