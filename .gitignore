@@ -2,3 +2,8 @@ runtimes/
 .idea/
 tmp/
 test/
+/pypy3.6-v7.3.2-linux64.tar.bz2
+/pypy3.10-v7.3.16-linux64.tar.bz2
+/Python-3.6.9.tgz
+/Python-3.10.14.tgz
+/sandbox/
