@@ -38,14 +38,9 @@ RUN cp /app/Judger/bindings/Python/_judger/__init__.py /app/_judger.py
 RUN mkdir /python
 RUN mv Python-3.6.9.tgz /python
 RUN mv Python-3.10.14.tgz /python
-RUN mv pypy3.6-v7.3.2-linux64.tar.bz2 /python
 RUN mv pypy3.10-v7.3.16-linux64.tar.bz2 /python
 
 WORKDIR /python
-
-RUN tar jxvf pypy3.6-v7.3.2-linux64.tar.bz2
-RUN rm pypy3.6-v7.3.2-linux64.tar.bz2
-RUN mv pypy3.6-v7.3.2-linux64 pypy3.6.9
 
 RUN tar jxvf pypy3.10-v7.3.16-linux64.tar.bz2
 RUN rm pypy3.10-v7.3.16-linux64.tar.bz2

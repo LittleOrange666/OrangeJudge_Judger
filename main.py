@@ -14,6 +14,8 @@ app.token = "<UNSET>"
 
 def check_token(token: str):
     if token != app.token:
+        print("user token=", token)
+        print("expected token=", app.token)
         raise HTTPException(403)
 
 
@@ -61,6 +63,7 @@ class InteractJudgeRequest(BaseModel):
     err_file: str = "/dev/null"
     interact_err_file: str = "/dev/null"
     seccomp_rule_name: SeccompRule | None = None
+    interact_seccomp_rule_name: SeccompRule | None = None
     uid: int = constants.nobody_uid
     interact_uid: int = constants.nobody_uid
 

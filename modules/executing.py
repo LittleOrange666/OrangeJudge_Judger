@@ -1,3 +1,4 @@
+import math
 import os
 import shutil
 import subprocess
@@ -42,7 +43,7 @@ class InteractResult:
 
 def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null", out_file: str = "/dev/null",
         err_file: str = "/dev/null", seccomp_rule_name: str | None = None,
-        uid: int = constants.nobody_uid) -> Result:
+        uid: int = constants.nobody_uid, reverse_io: int = 0) -> Result:
     # tl: ms ml: MB
     exe_path = cmd[0]
     if not exe_path.startswith("/"):
@@ -55,7 +56,7 @@ def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null
                       max_memory=ml * 1024 * 1024,
                       max_process_number=200,
                       max_output_size=128 * 1024 * 1024,
-                      max_stack=ml // 4 * 1024 * 1024,
+                      max_stack=math.ceil(ml / 4) * 1024 * 1024,
                       # five args above can be _judger.UNLIMITED
                       exe_path=exe_path,
                       input_path=in_file,
@@ -69,7 +70,8 @@ def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null
                       # can be None
                       seccomp_rule_name=seccomp_rule_name,
                       uid=uid,
-                      gid=uid)
+                      gid=uid,
+                      reverse_io=reverse_io)
     ret["result_id"] = ret["result"]
     ret["error_id"] = ret["error"]
     ret["result"] = constants.judegr_result.get(ret["result"], "unknown")
@@ -85,7 +87,7 @@ def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null
 def interact_run(cmd: list[str], interact_cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null",
                  out_file: str = "/dev/null",
                  err_file: str = "/dev/null", interact_err_file: str = "/dev/null",
-                 seccomp_rule_name: str | None = None,
+                 seccomp_rule_name: str | None = None, interact_seccomp_rule_name: str | None = None,
                  uid: int = constants.nobody_uid, interact_uid: int = constants.nobody_uid):
     fifo1 = temp_filename()
     fifo2 = temp_filename()
@@ -95,8 +97,8 @@ def interact_run(cmd: list[str], interact_cmd: list[str], tl: int = 1000, ml: in
 
     def run_inter():
         nonlocal inter_res
-        inter_res = run(interact_cmd + [in_file, out_file], tl, ml, fifo1, fifo2, interact_err_file, seccomp_rule_name,
-                        interact_uid)
+        inter_res = run(interact_cmd + [in_file, out_file], tl, ml, fifo1, fifo2, interact_err_file,
+                        interact_seccomp_rule_name, interact_uid, 1)
 
     t = threading.Thread(target=run_inter)
     t.start()
