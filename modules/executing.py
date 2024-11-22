@@ -121,8 +121,7 @@ def interact_run(cmd: list[str], interact_cmd: list[str], tl: int = 1000, ml: in
 
 
 def call(cmd: list[str], user: User | None = None, stdin: str = "", timeout: float | None = None,
-         cwd: str | None = None) -> tuple[
-    str, str, int]:
+         cwd: str | None = None) -> tuple[str, str, int]:
     if user is not None:
         cmd = ["sudo", "-u", user.value] + cmd
     print(*cmd)

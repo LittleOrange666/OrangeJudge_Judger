@@ -49,7 +49,7 @@ RUN mv pypy3.10-v7.3.16-linux64 pypy3.10.14
 RUN tar zxvf Python-3.6.9.tgz
 RUN rm Python-3.6.9.tgz
 WORKDIR /python/Python-3.6.9
-RUN ./configure --prefix=/python/python3.6.9
+RUN ./configure --prefix=/python/python3.6.9 --without-ensurepip
 RUN make
 RUN make install
 WORKDIR /python
@@ -58,9 +58,9 @@ RUN rm -rf Python-3.6.9
 RUN tar zxvf Python-3.10.14.tgz
 RUN rm Python-3.10.14.tgz
 WORKDIR /python/Python-3.10.14
-RUN ./configure --prefix=/python/python3.10.14
+RUN ./configure --prefix=/python/python3.10.14 --without-ensurepip
 RUN make
-RUN sudo make install
+RUN make install
 WORKDIR /python
 RUN rm -rf Python-3.10.14
 
