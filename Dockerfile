@@ -16,6 +16,7 @@ RUN apt-get -y install g++
 RUN apt-get -y install bzip2
 RUN apt-get -y install openjdk-8-jdk-headless
 RUN apt-get -y install openjdk-17-jdk-headless
+RUN apt-get -y install rustc
 
 RUN useradd judge -u 1500 --system --no-create-home
 RUN useradd compile -u 1600 --system --no-create-home
