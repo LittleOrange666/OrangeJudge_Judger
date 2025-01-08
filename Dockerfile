@@ -4,9 +4,9 @@ WORKDIR /app
 
 RUN apt-get update
 
-RUN apt-get -y install sudo python3 python3-pip make libseccomp-dev cmake bzip2 # for setup and server
+RUN apt-get -y install sudo python3 python3-pip make libseccomp-dev cmake bzip2 --fix-missing # for setup and server
 
-RUN apt-get -y install gcc g++ openjdk-8-jdk-headless openjdk-17-jdk-headless rustc # for supported languages
+RUN apt-get -y install gcc g++ openjdk-8-jdk-headless openjdk-17-jdk-headless rustc --fix-missing # for supported languages
 
 RUN useradd judge -u 1500 --system --no-create-home \
     && useradd compile -u 1600 --system --no-create-home \
