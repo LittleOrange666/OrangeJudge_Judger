@@ -33,11 +33,10 @@ FROM ubuntu:22.04
 
 WORKDIR /app
 
-RUN apt-get update
-
-RUN apt-get -y install python3 python3-pip libseccomp-dev --fix-missing # for setup and server
-
-RUN apt-get -y install gcc g++ openjdk-8-jdk-headless openjdk-17-jdk-headless rustc --fix-missing # for supported languages
+RUN apt-get update &&\
+    apt-get -y install sudo python3 python3-pip libseccomp-dev --fix-missing &&\
+    apt-get -y install gcc g++ openjdk-8-jdk-headless openjdk-17-jdk-headless rustc --fix-missing &&\
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN useradd judge -u 1500 --system --no-create-home \
     && useradd compile -u 1600 --system --no-create-home \
