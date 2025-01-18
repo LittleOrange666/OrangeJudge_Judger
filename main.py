@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Header, HTTPException
 import uvicorn
 
@@ -9,7 +11,7 @@ from modules.constants import SeccompRule, User, InitOp
 
 app = FastAPI()
 
-app.token = "<UNSET>"
+app.token = "<UNSET>" if "JUDGE_SERVER_TOKEN" not in os.environ else os.environ["JUDGE_SERVER_TOKEN"]
 
 
 def check_token(token: str):
