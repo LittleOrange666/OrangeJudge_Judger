@@ -5,4 +5,6 @@ if [ -z $1 ]; then
 else
   echo "Building version $1"
   docker build . -t littleorange666/judge_server:$1 --no-cache
+  echo "Pushing version $1"
+  docker push littleorange666/judge_server:$1
 fi

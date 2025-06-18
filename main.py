@@ -1,6 +1,7 @@
 import os
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
 import uvicorn
 
 from pydantic import BaseModel
@@ -110,6 +111,10 @@ async def init(item: InitRequest) -> str:
         else:
             return "FAILED"
 
+
+@app.get("/health_check")
+async def health_check():
+    return JSONResponse(content={"status": "ok"})
 
 if __name__ == '__main__':
     uvicorn.run(app, host='0.0.0.0', port=8000)
