@@ -31,7 +31,6 @@ COPY modules /app/modules
 
 RUN pip3 install -r requirements.txt
 
-COPY --from=builder /app/Judger/bindings/Python/_judger/__init__.py /app/_judger.py
 COPY --from=builder --chmod=755 --link /app/Judger/output/libjudger.so /usr/lib/judger/libjudger.so
 
 CMD python3 main.py

@@ -14,6 +14,8 @@ app = FastAPI()
 
 app.token = "<UNSET>" if "JUDGE_SERVER_TOKEN" not in os.environ else os.environ["JUDGE_SERVER_TOKEN"]
 
+port = int(os.environ.get("JUDGE_SERVER_PORT", 8000))
+
 
 def check_token(token: str):
     if token != app.token:
@@ -36,8 +38,8 @@ async def call(item: CallRequest, token: str = Header(...)):
     print(item.model_dump())
     check_token(token)
     if item.cmds is not None:
-        executing.calls(item.cmds, item.cwd)
-    res = executing.call(**item.model_dump(exclude={"cmds"}))
+        await executing.calls(item.cmds, item.cwd)
+    res = await executing.call(**item.model_dump(exclude={"cmds"}))
     return res
 
 
@@ -59,8 +61,8 @@ async def judge(item: JudgeRequest, token: str = Header(...)) -> Result:
     print(item.model_dump())
     check_token(token)
     if item.cmds is not None:
-        executing.calls(item.cmds, item.cwd)
-    res = executing.run(**item.model_dump(exclude={"cmds"}))
+        await executing.calls(item.cmds, item.cwd)
+    res = await executing.run(**item.model_dump(exclude={"cmds"}))
     return res
 
 
@@ -86,8 +88,8 @@ async def interact_judge(item: InteractJudgeRequest, token: str = Header(...)) -
     print(item.model_dump())
     check_token(token)
     if item.cmds is not None:
-        executing.calls(item.cmds, item.cwd)
-    res = executing.interact_run(**item.model_dump(exclude={"cmds"}))
+        await executing.calls(item.cmds, item.cwd)
+    res = await executing.interact_run(**item.model_dump(exclude={"cmds"}))
     return res
 
 
@@ -117,4 +119,4 @@ async def health_check():
     return JSONResponse(content={"status": "ok"})
 
 if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+    uvicorn.run(app, host='0.0.0.0', port=port)

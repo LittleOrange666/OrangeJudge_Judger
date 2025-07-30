@@ -1,15 +1,13 @@
+import asyncio
 import math
 import os
 import shutil
-import subprocess
 import sys
-import threading
 import uuid
 from dataclasses import dataclass
 
-import _judger
-
 from modules import constants
+from modules import judger
 from modules.constants import User
 
 
@@ -41,14 +39,15 @@ class InteractResult:
     interact_result: Result
 
 
-def calls(cmds: list[list[str]], cwd: str | None = None):
+async def calls(cmds: list[list[str]], cwd: str | None = None):
     for cmd in cmds:
-        subprocess.call(cmd, cwd=cwd)
+        proc = await asyncio.create_subprocess_exec(*cmd, cwd=cwd)
+        await proc.wait()
 
 
-def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null", out_file: str = "/dev/null",
-        err_file: str = "/dev/null", seccomp_rule_name: str | None = None,
-        uid: int = constants.nobody_uid, reverse_io: int = 0, cwd: str | None = None) -> Result:
+async def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null", out_file: str = "/dev/null",
+              err_file: str = "/dev/null", seccomp_rule_name: str | None = None,
+              uid: int = constants.nobody_uid, reverse_io: int = 0, cwd: str | None = None) -> Result:
     # tl: ms ml: MB
     exe_path = cmd[0]
     if not exe_path.startswith("/"):
@@ -59,27 +58,23 @@ def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null
     old_cwd = os.getcwd()
     if cwd is not None:
         os.chdir(cwd)
-    ret = _judger.run(max_cpu_time=tl,
-                      max_real_time=tl + 1000,
-                      max_memory=ml * 1024 * 1024,
-                      max_process_number=200,
-                      max_output_size=128 * 1024 * 1024,
-                      max_stack=math.ceil(ml / 4) * 1024 * 1024,
-                      # five args above can be _judger.UNLIMITED
-                      exe_path=exe_path,
-                      input_path=in_file,
-                      output_path=out_file,
-                      error_path=err_file,
-                      # can be empty list
-                      args=cmd[1:],
-                      # can be empty list
-                      env=["PATH=/usr/bin"],
-                      log_path=log_file,
-                      # can be None
-                      seccomp_rule_name=seccomp_rule_name,
-                      uid=uid,
-                      gid=uid,
-                      reverse_io=reverse_io)
+    ret = await judger.run(max_cpu_time=tl,
+                           max_real_time=tl + 1000,
+                           max_memory=ml * 1024 * 1024,
+                           max_process_number=200,
+                           max_output_size=128 * 1024 * 1024,
+                           max_stack=math.ceil(ml / 4) * 1024 * 1024,
+                           exe_path=exe_path,
+                           input_path=in_file,
+                           output_path=out_file,
+                           error_path=err_file,
+                           args=cmd[1:],
+                           env=["PATH=/usr/bin"],
+                           log_path=log_file,
+                           seccomp_rule_name=seccomp_rule_name,
+                           uid=uid,
+                           gid=uid,
+                           reverse_io=reverse_io)
     os.chdir(old_cwd)
     ret["result_id"] = ret["result"]
     ret["error_id"] = ret["error"]
@@ -93,11 +88,13 @@ def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null
     return Result(**ret)
 
 
-def interact_run(cmd: list[str], interact_cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null",
-                 out_file: str = "/dev/null",
-                 err_file: str = "/dev/null", interact_err_file: str = "/dev/null",
-                 seccomp_rule_name: str | None = None, interact_seccomp_rule_name: str | None = None,
-                 uid: int = constants.nobody_uid, interact_uid: int = constants.nobody_uid, cwd: str | None = None):
+async def interact_run(cmd: list[str], interact_cmd: list[str], tl: int = 1000, ml: int = 128,
+                       in_file: str = "/dev/null",
+                       out_file: str = "/dev/null",
+                       err_file: str = "/dev/null", interact_err_file: str = "/dev/null",
+                       seccomp_rule_name: str | None = None, interact_seccomp_rule_name: str | None = None,
+                       uid: int = constants.nobody_uid, interact_uid: int = constants.nobody_uid,
+                       cwd: str | None = None):
     fifo1 = temp_filename()
     fifo2 = temp_filename()
     os.mkfifo(fifo1)
@@ -105,32 +102,29 @@ def interact_run(cmd: list[str], interact_cmd: list[str], tl: int = 1000, ml: in
     old_cwd = os.getcwd()
     if cwd is not None:
         os.chdir(cwd)
-    inter_res: Result | None = None
-
-    def run_inter():
-        nonlocal inter_res
-        inter_res = run(interact_cmd + [in_file, out_file], tl, ml, fifo1, fifo2, interact_err_file,
-                        interact_seccomp_rule_name, interact_uid, 1)
-
-    t = threading.Thread(target=run_inter)
-    t.start()
-    res = run(cmd, tl, ml, fifo2, fifo1, err_file, seccomp_rule_name, uid)
-    t.join()
+    inter_res_wait = run(interact_cmd + [in_file, out_file], tl, ml, fifo1, fifo2, interact_err_file,
+                         interact_seccomp_rule_name, interact_uid, 1)
+    res_wait = run(cmd, tl, ml, fifo2, fifo1, err_file, seccomp_rule_name, uid)
+    inter_res = await inter_res_wait
+    res = await res_wait
     os.chdir(old_cwd)
     return InteractResult(result=res, interact_result=inter_res)
 
 
-def call(cmd: list[str], user: User | None = None, stdin: str = "", timeout: float | None = None,
-         cwd: str | None = None) -> tuple[str, str, int]:
+async def call(cmd: list[str], user: User | None = None, stdin: str = "", timeout: float | None = None,
+               cwd: str | None = None) -> tuple[str, str, int]:
     if user is not None:
         cmd = ["sudo", "-u", user.value] + cmd
     print(*cmd)
     if timeout is None:
         timeout = 30
-    process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
+    process = await asyncio.create_subprocess_exec(*cmd, stdin=asyncio.subprocess.PIPE,
+                                                   stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                                                   cwd=cwd)
     try:
-        ret = process.communicate(stdin.encode("utf8"), timeout=timeout)
+        ret = await asyncio.wait_for(process.communicate(stdin.encode("utf8")), timeout)
         return ret[0].decode("utf8"), ret[1].decode("utf8"), process.returncode
-    except subprocess.TimeoutExpired:
+    except asyncio.TimeoutError:
         process.kill()
+        await process.wait()
         return "TLE", "TLE", 777777
