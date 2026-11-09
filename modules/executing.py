@@ -1,6 +1,7 @@
 import asyncio
 import math
 import os
+import pwd
 import shutil
 import sys
 import tempfile
@@ -18,6 +19,18 @@ def random_string() -> str:
 
 def temp_filename():
     return "/tmp/" + random_string()
+
+
+def primary_gid(uid: int) -> int:
+    """
+    The primary group of ``uid``. ``useradd --system`` gives the sandbox users groups whose gid differs from
+    their uid (e.g. judge = 1500:999), and OrangeJudge grants access with ``chgrp <user>``, so processes must
+    run with the user's real group instead of gid = uid.
+    """
+    try:
+        return pwd.getpwuid(uid).pw_gid
+    except KeyError:
+        return uid
 
 
 @dataclass
@@ -80,7 +93,7 @@ async def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/de
                            log_path=log_file,
                            seccomp_rule_name=seccomp_rule_name,
                            uid=uid,
-                           gid=uid,
+                           gid=primary_gid(uid),
                            reverse_io=reverse_io)
     os.chdir(old_cwd)
     ret["result_id"] = ret["result"]
@@ -143,7 +156,7 @@ async def communicate_run(cmd: list[str], interact_cmd: list[str], num_processes
     try:
         # only the manager (interact_uid) may access the fifos by name; user processes get them as stdio,
         # which libjudger opens before dropping privileges.
-        os.chown(fifo_dir, interact_uid, interact_uid)
+        os.chown(fifo_dir, interact_uid, primary_gid(interact_uid))
         os.chmod(fifo_dir, 0o700)
         pairs: list[tuple[str, str]] = []
         for i in range(num_processes):
@@ -151,7 +164,7 @@ async def communicate_run(cmd: list[str], interact_cmd: list[str], num_processes
             fifo_to = os.path.join(fifo_dir, f"to_{i}")
             for fifo in (fifo_from, fifo_to):
                 os.mkfifo(fifo, 0o600)
-                os.chown(fifo, interact_uid, interact_uid)
+                os.chown(fifo, interact_uid, primary_gid(interact_uid))
             pairs.append((fifo_from, fifo_to))
         old_cwd = os.getcwd()
         if cwd is not None:
