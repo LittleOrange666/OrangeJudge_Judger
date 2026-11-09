@@ -54,6 +54,7 @@ class JudgeRequest(BaseModel):
     uid: int = constants.nobody_uid
     cwd: str | None = None
     cmds: list[list[str]] | None = None
+    memory_limit_check_only: bool = False
 
 
 @app.post("/judge")
@@ -81,6 +82,7 @@ class InteractJudgeRequest(BaseModel):
     interact_uid: int = constants.nobody_uid
     cwd: str | None = None
     cmds: list[list[str]] | None = None
+    memory_limit_check_only: bool = False
 
 
 @app.post("/interact_judge")
@@ -110,6 +112,7 @@ class CommunicateJudgeRequest(BaseModel):
     interact_tl: int | None = None
     cwd: str | None = None
     cmds: list[list[str]] | None = None
+    memory_limit_check_only: bool = False
 
 
 @app.post("/communicate_judge")

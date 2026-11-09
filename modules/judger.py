@@ -42,7 +42,8 @@ async def run(max_cpu_time,
               uid,
               gid,
               reverse_io,
-              memory_limit_check_only=0):
+              memory_limit_check_only=0,
+              address_space_limit=None):
     str_list_vars = ["args", "env"]
     int_vars = ["max_cpu_time", "max_real_time",
                 "max_memory", "max_stack", "max_output_size",
@@ -77,6 +78,10 @@ async def run(max_cpu_time,
         raise ValueError("seccomp_rule_name must be a string or None")
     if seccomp_rule_name:
         proc_args.append("--seccomp_rule={}".format(seccomp_rule_name))
+    if address_space_limit is not None:
+        # RLIMIT_AS set on libjudger is inherited by the judged process
+        # (libjudger itself only sets RLIMIT_AS when memory_limit_check_only == 0)
+        proc_args = ["prlimit", "--as={}".format(int(address_space_limit)), "--"] + proc_args
     proc = await asyncio.create_subprocess_exec(*proc_args, stdout=asyncio.subprocess.PIPE,
                                                 stderr=asyncio.subprocess.PIPE)
     out, err = await proc.communicate()

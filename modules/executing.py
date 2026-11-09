@@ -13,6 +13,10 @@ from modules import judger
 from modules.constants import User
 
 
+# extra address space (MB) granted on top of 2 * ml when only the RSS is checked
+MEMORY_CHECK_ONLY_EXTRA_AS = 4096
+
+
 def random_string() -> str:
     return uuid.uuid4().hex
 
@@ -67,8 +71,13 @@ async def calls(cmds: list[list[str]], cwd: str | None = None):
 
 async def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/dev/null", out_file: str = "/dev/null",
               err_file: str = "/dev/null", seccomp_rule_name: str | None = None,
-              uid: int = constants.nobody_uid, reverse_io: int = 0, cwd: str | None = None) -> Result:
+              uid: int = constants.nobody_uid, reverse_io: int = 0, cwd: str | None = None,
+              memory_limit_check_only: bool = False) -> Result:
     # tl: ms ml: MB
+    # memory_limit_check_only: do not limit the address space to 2 * ml, only compare the peak RSS against ml.
+    # Needed by runtimes that reserve a lot of virtual memory up front (Go ~700MB, Node.js ~1.3GB, JVM).
+    # The address space is still capped generously so a runaway program cannot exhaust the host's memory.
+    address_space_limit = (ml * 2 + MEMORY_CHECK_ONLY_EXTRA_AS) * 1024 * 1024 if memory_limit_check_only else None
     exe_path = cmd[0]
     if not exe_path.startswith("/"):
         which_exe_path = shutil.which(exe_path)
@@ -94,7 +103,9 @@ async def run(cmd: list[str], tl: int = 1000, ml: int = 128, in_file: str = "/de
                            seccomp_rule_name=seccomp_rule_name,
                            uid=uid,
                            gid=primary_gid(uid),
-                           reverse_io=reverse_io)
+                           reverse_io=reverse_io,
+                           memory_limit_check_only=int(memory_limit_check_only),
+                           address_space_limit=address_space_limit)
     os.chdir(old_cwd)
     ret["result_id"] = ret["result"]
     ret["error_id"] = ret["error"]
@@ -114,7 +125,7 @@ async def interact_run(cmd: list[str], interact_cmd: list[str], tl: int = 1000, 
                        err_file: str = "/dev/null", interact_err_file: str = "/dev/null",
                        seccomp_rule_name: str | None = None, interact_seccomp_rule_name: str | None = None,
                        uid: int = constants.nobody_uid, interact_uid: int = constants.nobody_uid,
-                       cwd: str | None = None):
+                       cwd: str | None = None, memory_limit_check_only: bool = False):
     fifo1 = temp_filename()
     fifo2 = temp_filename()
     os.mkfifo(fifo1)
@@ -124,7 +135,8 @@ async def interact_run(cmd: list[str], interact_cmd: list[str], tl: int = 1000, 
         os.chdir(cwd)
     inter_res_wait = run(interact_cmd + [in_file, out_file], tl, ml, fifo1, fifo2, interact_err_file,
                          interact_seccomp_rule_name, interact_uid, 1)
-    res_wait = run(cmd, tl, ml, fifo2, fifo1, err_file, seccomp_rule_name, uid)
+    res_wait = run(cmd, tl, ml, fifo2, fifo1, err_file, seccomp_rule_name, uid,
+                   memory_limit_check_only=memory_limit_check_only)
     try:
         # both processes must run concurrently, otherwise opening the fifos blocks forever
         inter_res, res = await asyncio.gather(inter_res_wait, res_wait)
@@ -141,7 +153,8 @@ async def communicate_run(cmd: list[str], interact_cmd: list[str], num_processes
                           err_file: str = "/dev/null", interact_err_file: str = "/dev/null",
                           seccomp_rule_name: str | None = None, interact_seccomp_rule_name: str | None = None,
                           uid: int = constants.nobody_uid, interact_uid: int = constants.nobody_uid,
-                          interact_tl: int | None = None, cwd: str | None = None) -> CommunicateResult:
+                          interact_tl: int | None = None, cwd: str | None = None,
+                          memory_limit_check_only: bool = False) -> CommunicateResult:
     """
     CMS "Communication" style judging with N user processes.
 
@@ -174,7 +187,8 @@ async def communicate_run(cmd: list[str], interact_cmd: list[str], num_processes
             manager_wait = run(manager_args, tl if interact_tl is None else interact_tl, ml, "/dev/null",
                                "/dev/null", interact_err_file, interact_seccomp_rule_name, interact_uid)
             # reverse_io=1: open stdout (from_i) first, matching the manager's from_i -> to_i open order
-            user_waits = [run(cmd + [str(i)], tl, ml, fifo_to, fifo_from, err_file, seccomp_rule_name, uid, 1)
+            user_waits = [run(cmd + [str(i)], tl, ml, fifo_to, fifo_from, err_file, seccomp_rule_name, uid, 1,
+                              memory_limit_check_only=memory_limit_check_only)
                           for i, (fifo_from, fifo_to) in enumerate(pairs)]
             all_res = await asyncio.gather(manager_wait, *user_waits)
         finally:
