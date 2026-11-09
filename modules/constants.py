@@ -34,6 +34,7 @@ class SeccompRule(str, Enum):
     general = "general"
     golang = "golang"
     node = "node"
+    runtime = "runtime"
 
 
 class User(str, Enum):
