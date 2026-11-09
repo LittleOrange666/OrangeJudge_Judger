@@ -4,10 +4,10 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 import uvicorn
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from modules import executing, constants
-from modules.executing import InteractResult, Result
+from modules.executing import InteractResult, Result, CommunicateResult
 from modules.constants import SeccompRule, User, InitOp
 
 app = FastAPI()
@@ -90,6 +90,35 @@ async def interact_judge(item: InteractJudgeRequest, token: str = Header(...)) -
     if item.cmds is not None:
         await executing.calls(item.cmds, item.cwd)
     res = await executing.interact_run(**item.model_dump(exclude={"cmds"}))
+    return res
+
+
+class CommunicateJudgeRequest(BaseModel):
+    cmd: list[str]
+    interact_cmd: list[str]
+    num_processes: int = Field(1, ge=1, le=64)
+    tl: int = 1000
+    ml: int = 128
+    in_file: str = "/dev/null"
+    out_file: str = "/dev/null"
+    err_file: str = "/dev/null"
+    interact_err_file: str = "/dev/null"
+    seccomp_rule_name: SeccompRule | None = None
+    interact_seccomp_rule_name: SeccompRule | None = None
+    uid: int = constants.nobody_uid
+    interact_uid: int = constants.nobody_uid
+    interact_tl: int | None = None
+    cwd: str | None = None
+    cmds: list[list[str]] | None = None
+
+
+@app.post("/communicate_judge")
+async def communicate_judge(item: CommunicateJudgeRequest, token: str = Header(...)) -> CommunicateResult:
+    print(item.model_dump())
+    check_token(token)
+    if item.cmds is not None:
+        await executing.calls(item.cmds, item.cwd)
+    res = await executing.communicate_run(**item.model_dump(exclude={"cmds"}))
     return res
 
 

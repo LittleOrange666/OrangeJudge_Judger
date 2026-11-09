@@ -3,6 +3,7 @@ import math
 import os
 import shutil
 import sys
+import tempfile
 import uuid
 from dataclasses import dataclass
 
@@ -36,6 +37,12 @@ class Result:
 @dataclass
 class InteractResult:
     result: Result
+    interact_result: Result
+
+
+@dataclass
+class CommunicateResult:
+    results: list[Result]
     interact_result: Result
 
 
@@ -105,10 +112,63 @@ async def interact_run(cmd: list[str], interact_cmd: list[str], tl: int = 1000, 
     inter_res_wait = run(interact_cmd + [in_file, out_file], tl, ml, fifo1, fifo2, interact_err_file,
                          interact_seccomp_rule_name, interact_uid, 1)
     res_wait = run(cmd, tl, ml, fifo2, fifo1, err_file, seccomp_rule_name, uid)
-    inter_res = await inter_res_wait
-    res = await res_wait
-    os.chdir(old_cwd)
+    try:
+        # both processes must run concurrently, otherwise opening the fifos blocks forever
+        inter_res, res = await asyncio.gather(inter_res_wait, res_wait)
+    finally:
+        os.chdir(old_cwd)
+        for fifo in (fifo1, fifo2):
+            if os.path.exists(fifo):
+                os.remove(fifo)
     return InteractResult(result=res, interact_result=inter_res)
+
+
+async def communicate_run(cmd: list[str], interact_cmd: list[str], num_processes: int = 1, tl: int = 1000,
+                          ml: int = 128, in_file: str = "/dev/null", out_file: str = "/dev/null",
+                          err_file: str = "/dev/null", interact_err_file: str = "/dev/null",
+                          seccomp_rule_name: str | None = None, interact_seccomp_rule_name: str | None = None,
+                          uid: int = constants.nobody_uid, interact_uid: int = constants.nobody_uid,
+                          interact_tl: int | None = None, cwd: str | None = None) -> CommunicateResult:
+    """
+    CMS "Communication" style judging with N user processes.
+
+    For every process i two FIFOs are created: ``from_i`` (user -> manager) and ``to_i`` (manager -> user).
+    The manager is executed as ``interact_cmd in_file out_file from_0 to_0 from_1 to_1 ...`` with stdin/stdout
+    bound to /dev/null; it has to open each pair in the order from_i then to_i.
+    User process i is executed as ``cmd i`` with stdin = to_i and stdout = from_i.
+    """
+    if num_processes < 1:
+        raise ValueError("num_processes must be positive")
+    fifo_dir = tempfile.mkdtemp(prefix="communicate_")
+    try:
+        # only the manager (interact_uid) may access the fifos by name; user processes get them as stdio,
+        # which libjudger opens before dropping privileges.
+        os.chown(fifo_dir, interact_uid, interact_uid)
+        os.chmod(fifo_dir, 0o700)
+        pairs: list[tuple[str, str]] = []
+        for i in range(num_processes):
+            fifo_from = os.path.join(fifo_dir, f"from_{i}")
+            fifo_to = os.path.join(fifo_dir, f"to_{i}")
+            for fifo in (fifo_from, fifo_to):
+                os.mkfifo(fifo, 0o600)
+                os.chown(fifo, interact_uid, interact_uid)
+            pairs.append((fifo_from, fifo_to))
+        old_cwd = os.getcwd()
+        if cwd is not None:
+            os.chdir(cwd)
+        try:
+            manager_args = interact_cmd + [in_file, out_file] + [f for pair in pairs for f in pair]
+            manager_wait = run(manager_args, tl if interact_tl is None else interact_tl, ml, "/dev/null",
+                               "/dev/null", interact_err_file, interact_seccomp_rule_name, interact_uid)
+            # reverse_io=1: open stdout (from_i) first, matching the manager's from_i -> to_i open order
+            user_waits = [run(cmd + [str(i)], tl, ml, fifo_to, fifo_from, err_file, seccomp_rule_name, uid, 1)
+                          for i, (fifo_from, fifo_to) in enumerate(pairs)]
+            all_res = await asyncio.gather(manager_wait, *user_waits)
+        finally:
+            os.chdir(old_cwd)
+        return CommunicateResult(results=list(all_res[1:]), interact_result=all_res[0])
+    finally:
+        shutil.rmtree(fifo_dir, ignore_errors=True)
 
 
 async def call(cmd: list[str], user: User | None = None, stdin: str = "", timeout: float | None = None,
